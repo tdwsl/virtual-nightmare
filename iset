@@ -1,0 +1,37 @@
+16 16-bit registers, r0-r15, r15=pc, r14=sp
+additionally zero register, set based on ra of last instruction
+word oriented memory, 64kwords/128kb
+
+instruction formats:
+
+0xxx xxxx xxxx xxxx mov r0,#x
+100i iiii aaaa bbbb op ra,rb
+101i iiii aaaa xxxx op ra,#x
+101i iiii aaaa 1111 op ra,~r0
+1100 0000 xxxx xxxx syscall #x
+1110 xxxx xxxx xxxx jz pc+#x(signed)
+1111 xxxx xxxx xxxx jnz pc+#x(signed)
+
+ops:
+
+0  mov add lw sw
+4  sub and or xor
+8  asr lsr lsl mul
+12 div divu rem remu
+16 lt ltu gt gtu
+20 ge geu le leu
+24 eq ne inv neg
+28 jl va lv sv
+
+syscalls:
+
+0 exit with code r1
+1 print char in r1
+2 read char to r1
+3 debug enabled = r1
+4 open file r1 for reading -> r1=fd
+5 open file r1 for writing -> r1=fd
+6 close file r1 -> r1=0|EOF
+7 write byte in r1 to file r2 -> r1=b|EOF
+8 read byte from file r1 -> r1=b|EOF
+

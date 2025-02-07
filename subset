@@ -1,0 +1,7 @@
+subset of c:
+- 16 bit, no long, no float
+- #define just defines constant
+- forget about const
+- no multi-dimensional arrays
+- no bitfields
+- no local statics
