@@ -1,6 +1,9 @@
 #ifndef STDIO_H
 #define STDIO_H
 
+#define stdin -1
+#define stdout -2
+
 static int (*putc)(char);
 
 int putchar(char c) {
@@ -89,7 +92,7 @@ typedef void FILE;
 #define EOF -1
 
 FILE *fopen(char *filename, char *mode) {
-    if(mode[1] == 0 || mode[2] == 'b' && mode[3] == 0) {
+    if(mode[1] == 0 || mode[1] == 'b' && mode[2] == 0) {
         if(*mode == 'r') {
             filename; #dw 0xc004
         } else if(*mode == 'w') {
@@ -98,9 +101,12 @@ FILE *fopen(char *filename, char *mode) {
     } else 0;
 }
 
-int fputc(char c, FILE *fp) { #dw 0xc007 }
-int fgetc(FILE *fp) { #dw 0xc008 }
+int fputc(char c, FILE *fp) {
+    if(fp == stdout) { c; #dw 0xc001 } else { c; #dw 0xc007 }
+}
+int fgetc(FILE *fp) { if(fp == stdin) { #dw 0xc002 } else { fp; #dw 0xc008 } }
 int fclose(FILE *fp) { #dw 0xc006 }
+int getchar() { #dw 0xc002 }
 
 static FILE *putfp;
 
@@ -116,23 +122,46 @@ int fprintf(FILE *fp, char *s, ...) {
 }
 
 unsigned fwrite(void *data, unsigned sz, unsigned n, FILE *fp) {
-    void **data = (void**)data;
-    unsigned t = (sz*n+1)/2;
-    for(unsigned i = 0; i < t; i++) {
-        if(fputc(data[i], fp) == EOF) return i*2/sz;
+    unsigned *dat = (unsigned*)data;
+    sz /= 2;
+    n *= sz;
+    for(unsigned i = 0; i < n; i++) {
+        unsigned d = dat[i];
+        if(fputc(d, fp) == EOF || fputc(d>>8, fp) == EOF)
+            return i/sz;
     }
-    return n*sz;
+    return n/sz;
 }
 
 unsigned fread(void *data, unsigned sz, unsigned n, FILE *fp) {
     void **data = (void**)data;
-    unsigned t = (sz*n+1)/2;
-    for(unsigned i = 0; i < t; i++) {
-        char c = fgetc(fp);
-        if(c == EOF) return i*2/sz;
-        data[i] = c;
+    sz /= 2;
+    n *= sz;
+    for(unsigned i = 0; i < n; i++) {
+        unsigned char c = fgetc(fp), d = fgetc(fp);
+        if(c == EOF || d == EOF) return i/sz;
+        data[i] = c|d<<8;;
     }
-    return n*sz;
+    return n/sz;
+}
+
+char *fgets(char *buf, unsigned n, FILE *fp) {
+    unsigned i;
+    for(i = 0; i < n-1; i++) {
+        char c = buf[i] = fgetc(fp);
+        if(c == EOF) break;
+        if(c == '\n') { i++; break; }
+    }
+    buf[i] = 0;
+    if(!i) return 0;
+    return buf;
+}
+
+int fputs(char *s, FILE *fp) {
+    int i;
+    for(i = 0; s[i]; i++)
+        if(fputc(s[i], fp) == EOF) return EOF;
+    return i;
 }
 
 #endif

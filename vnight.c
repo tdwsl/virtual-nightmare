@@ -23,6 +23,8 @@ int openFile(unsigned short a, char *m) {
 }
 
 int closeFile(unsigned short f) {
+    if(!f) return -1;
+    f--;
     if(f >= MAXFILES) return -1;
     if(!files[f]) return -1;
     if(fclose(files[f])) return -1;
@@ -31,6 +33,7 @@ int closeFile(unsigned short f) {
 }
 
 int writeByte(char b, unsigned short f) {
+    if(!f) return -1;
     f--;
     if(f >= MAXFILES) return -1;
     if(!files[f]) return -1;
@@ -38,6 +41,7 @@ int writeByte(char b, unsigned short f) {
 }
 
 int readByte(unsigned short f) {
+    if(!f) return -1;
     f--;
     if(f >= MAXFILES) return -1;
     if(!files[f]) return -1;
