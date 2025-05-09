@@ -35,3 +35,15 @@ syscalls:
 7 write byte in r1 to file r2 -> r1=b|EOF
 8 read byte from file r1 -> r1=b|EOF
 
+graphics/game syscalls:
+
+16 init graphics mode with screen w=r1, h=r2 -> r1=success|0
+17 leave graphics mode
+18 clear screen, r1=colour(12bit)
+19 refresh screen
+20 blit 1-bit image, r1=addr,r2=colour(12bit),r3=w,r4=h,r5=x,r6=y,r7=dw,r8=dh
+21 current key pressed on keyboard -> r1=key(or 0)
+22 get status of joy r1 -> r1=status(udlr abxy lb/rb/select/start)
+23 set ticks to r1(ms)
+24 get tick status -> r1=1|0 (resets to 0)
+
