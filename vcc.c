@@ -457,12 +457,8 @@ void compileString(char *s) {
 
 void id(int toki) {
     int n;
-    printf("%d/%d\n", tok[toki], NDEF);
     char *s = toString(tok[toki]);
-    if(number(s, &n)) { printf("number btw\n"); }
-    if(tok[toki] < NDEF) { printf("invalid btw\n"); }
     if(tok[toki] < NDEF || number(s, &n)) {
-        printf("BUT\n");
         terrh(); printf("invalid identifier %s\n", s); exit(1);
     }
     if(findConstant(tok[toki]) == -1)
@@ -504,7 +500,7 @@ int sameType(struct datatype *a, struct datatype *b) {
 
 int readType();
 
-int evalExpr();
+short evalExpr();
 
 int defStruct(int name, int t) {
     int d;
@@ -512,7 +508,6 @@ int defStruct(int name, int t) {
     st = &types[findStruct(name, t)];
     st->typetype = t;
     st->ne = 0;
-    printf("deffin struct rn\n");
     d = 0;
     for(int i = toki; tok[i] != EOF; i++) {
         int t = tok[i];
@@ -531,9 +526,7 @@ int defStruct(int name, int t) {
     nels += st->ne * 3;
     int ne = 0;
     do {
-        printf("%s\n", toString(tok[toki]));
         t = readType();
-        printf("type:%d\n", t);
         if(tok[toki] == SEMI) {
             if(types[t].typetype == TUNKNOWN
                     || types[t].typetype == STRUCT
@@ -544,7 +537,6 @@ int defStruct(int name, int t) {
                 ne++;
             } else err("expected identifier");
         } else for(;;) {
-            printf(", %s\n", toString(tok[toki]));
             id(toki); st->e[ne*3] = tok[toki++];
             if(tok[toki] == LB) {
                 toki++; st->e[ne*3+2] = evalExpr(); closing(RB);
@@ -554,7 +546,6 @@ int defStruct(int name, int t) {
             if(tok[toki] == SEMI) break;
             expect(COM);
         }
-        printf("out!\n");
         do toki++; while(tok[toki] == SEMI);
     } while(tok[toki] != RC);
     toki++;
@@ -567,7 +558,6 @@ int defStruct(int name, int t) {
     } else {
         t = st-types;
     }
-    printf("enddef\n");
     return t;
 }
 
@@ -913,7 +903,7 @@ int evalTern(int *n, int *t) {
     return 1;
 }
 
-int evalExpr() {
+short evalExpr() {
     int n, t;
     if(!evalTern(&n, &t)) err("failed to evaluate constant");
     return n;
@@ -1079,7 +1069,6 @@ int structMember(int ti, int id, int *ta, int *a) {
 }
 
 void getStructMember(int ti, int id, int *ta, int *a) {
-    printf("%s\n", toString(id));
     int i;
     if(ti < 0 || (i = types[ti].typetype) != STRUCT && i != UNION)
         err("expected struct");
@@ -1146,7 +1135,6 @@ int compileValue(int rn, int te) {
                 }
                 ti0 = toki;
                 if(t < 0 || types[t].typetype != TFUN) {
-                    printf("%d\n", t);
                     toki -= 2; err("expected function");
                 }
                 struct datatype *d = &types[t];
@@ -1345,7 +1333,7 @@ int compileOp(int p, int rn) {
             t = TINT;
             break;
         case 2:
-            if(evalOp(2, &n, &tb) || evalOp(1, &n, &tb))
+            if(/*evalOp(2, &n, &tb) ||*/ evalOp(1, &n, &tb))
                 addLit(o, rn, t, n, tb);
             else { tb = compileOp(1, rb(rn)); addR(o, rn, t, rn+1, tb); }
             t = whichType(o, t, tb);
@@ -1429,7 +1417,6 @@ int countCases() {
 }
 
 void compileStatement() {
-    printf("%d:%s\n", linen[toki], toString(tok[toki]));
     switch(tok[toki++]) {
     case LC:
         {
@@ -1651,8 +1638,6 @@ int compileGlobal(int t) {
     int sz = typeSize(t);
     g->dt = t;
     int dim = -1;
-    printf("nom:%s\n", toString(g->sym));
-    printf("size:%d\n", sz);
     if(tok[toki] == LB) {
         toki++;
         g->gt = TARR;
@@ -1663,7 +1648,6 @@ int compileGlobal(int t) {
             toki++; expect(E); expect(LC);
             int i = ndata;
             ndata += (dim = countEls(RC))*sz;
-            printf("nels:%d\n", dim);
             for(;;) {
                 data[i] = evalExpr();
                 i += sz;
@@ -1681,13 +1665,8 @@ int compileGlobal(int t) {
         toki++;
         if(t >= 0 && types[t].typetype != TPTR)
             err("wrong type for data declaration");
-        printf("WoAh data1\n");
-        printf("%s\n", toString(tok[toki]));
         ndata += sz;
         data[g->a-DORG] = evalExpr();
-        printf("data...\n");
-        printf("%s\n", toString(tok[toki]));
-        printf("val is %x\n", data[g->a-DORG]);
     } else {
         g->gt = TSINGLE; g->a = nbss;
         nbss += sz;
@@ -1778,8 +1757,6 @@ int compileFunction(int t) {
         if(globals[i].sym == g->sym)
             if(globals[i].gt == TEXFUN || g->gt == TEXFUN) {
                 if(globals[i].dt != g->dt) {
-                    printType(globals[i].dt);
-                    printType(g->dt);
                     errv("wrong type for ", g->sym);
                 }
                 break;
@@ -1803,7 +1780,6 @@ int compileFunction(int t) {
     text[ntext++] = ins(0, 15, 13);
     for(int i = g->a; i < ntext; i++)
         if(text[i] == GO) {
-            for(int j = i-2; j < i+3; j++) printf("%.4x\n", text[j]);
             int j = text[i+1];
             if(!labels[j].a) {
                 j = labels[j].sym;
@@ -1822,7 +1798,6 @@ void hideStatic(struct pair *sta) {
     for(int i = 0; i < nstatc; i++) {
         sta[i].sym = globals[sta[i].a = statc[i]].sym;
         globals[sta[i].a].sym = EOF;
-        printf("STATIC %d %d\n", i, sta[i].sym);
     }
     nstatc = 0;
 }
@@ -1852,7 +1827,6 @@ int compileFile(char *name) {
         readTokens(fp);
         toki = 0;
         if(tok[0] == EOF) break;
-        printTokens();
         if(tok[0] == DEFINE) {
             id(toki = 1);
             int n;
@@ -1903,7 +1877,6 @@ int compileFile(char *name) {
             char st = 0;
             if(tok[toki] == STATIC) { toki++; st = 1; }
             int t = readType();
-            printType(t);
             if(tok[toki] != SEMI) {
                 int i;
                 if(tok[toki+1] == LP) i = compileFunction(t);
@@ -1911,7 +1884,6 @@ int compileFile(char *name) {
                 if(st) statc[nstatc++] = i;
             }
         }
-        printf("%d+%d+%d\n", ntext, ndata, nbss-BSSORG);
     }
     if(nif) erra(linen[0], "expected #endif before EOF");
     fclose(fp);
@@ -1941,13 +1913,11 @@ void prepareSave() {
     if((n = globals[i].dt) < 0 || types[n].typetype != TFUN)
         err("main should be function");
     text[0] = globals[i].a;
-    printf("main: %d\n", globals[i].a);
 }
 
 void saveFile(const char *filename) {
     prepareSave();
     FILE *fp = fopen(filename, "wb");
-    printf("fwrite will work?\n");
     if(!fp) {
         printf("failed to open output file %s\n", filename); exit(1);
     }
@@ -1980,17 +1950,7 @@ int main(int argc, char **args) {
             printf("failed to open input file %s\n", args[i]);
             return 1;
         }
-    for(int i = 0; i < nconstants; i++)
-        printf("%s = %d\n", toString(constants[i].sym), constants[i].a);
-    for(int i = 0; i < ntypes; i++)
-        printType(i);
-    for(int i = 0; i < nglobals; i++)
-        printGlobal(&globals[i]);
     saveFile(outfile);
-    printf("ntext: %d\n", ntext);
-    printf("ndata: %d\nnbss:%d(%d)\n", ndata, nbss, nbss-BSSORG);
-    printf("symbols: %d/%d\n", nsymbols, MAXSYMBOLS);
-    printf("%d b\n", &mend-&mstart);
     printf("wrote %d bytes\n", (ntext+ndata)*2+8);
     return 0;
 }

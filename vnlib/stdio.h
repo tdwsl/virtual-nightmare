@@ -11,7 +11,7 @@ int putchar(char c) {
     return (unsigned char)c;
 }
 
-static int putd(int n) {
+static int putd(int n, int pad, char padc) {
     char s[20];
     int i = 0;
     if(n < 0) { n = -n; putc('-'); }
@@ -19,12 +19,12 @@ static int putd(int n) {
         s[i++] = n%10;
         n /= 10;
     } while(n);
-    n = i;
+    for(n = i; n < pad; n++) putc(padc);
     do putc(s[--i]+'0'); while(i);
     return n;
 }
 
-static int putx(unsigned n, char a) {
+static int putx(unsigned n, char a, int pad, char padc) {
     char s[4];
     int i = 0;
     do {
@@ -33,13 +33,15 @@ static int putx(unsigned n, char a) {
         s[i++] = c;
         n >>= 4;
     } while(n);
-    n = i;
+    for(n = i; n < pad; n++) putc(padc);
     do putc(s[--i]); while(i);
     return n;
 }
 
-int puts(char *s) {
+int puts(char *s, int pad, char padc) {
     int i;
+    for(i = 0; s[i]; i++);
+    for(; i < pad; i++) putc(padc);
     for(i = 0; s[i]; i++) putc(s[i]);
     return i;
 }
@@ -49,16 +51,20 @@ static int _printf(char *s, void **a) {
     int x = 0;
     while(c = *s++) {
         if(c == '%') {
+            char padc = ' '; int pad = 0;
+again:
             c = *s++;
-            //#dw 0xc003
             switch(c) {
-            case 'd': x += putd(*a++); break;
+            case 'd': x += putd(*a++, pad, padc); break;
             case 'c': putc(*a++); x++; break;
-            case 's': x += puts(*a++); break;
-            case 'x': x += putx(*a++, 'a'-10); break;
-            case 'X': x += putx(*a++, 'A'-10); break;
+            case 's': x += puts(*a++, pad, padc); break;
+            case 'x': x += putx(*a++, 'a'-10, pad, padc); break;
+            case 'X': x += putx(*a++, 'A'-10, pad, padc); break;
+            case '.': padc = '0'; goto again;
             case 0: break;
-            default: putc(c); x++; break;
+            default:
+                if(c >= '0' && c <= '9') { pad = c - '0'; goto again; }
+                putc(c); x++; break;
             }
             //0; #dw 0xc003
         } else { putc(c); x++; }

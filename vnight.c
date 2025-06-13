@@ -3,62 +3,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifdef VN_SDL
-#include <SDL2/SDL.h>
-
-int joykeys[] = {
-    SDLK_UP, SDLK_DOWN, SDLK_LEFT, SDLK_RIGHT,
-    SDLK_z, SDLK_x, SDLK_a, SDLK_s, SDLK_c, SDLK_v,
-    SDLK_TAB, SDLK_RETURN,
-};
-
-unsigned scale = 1;
-unsigned scrw, scrh;
-
-SDL_Renderer *renderer;
-SDL_Window *window;
-
-void setColor(unsigned rgb) {
-    SDL_SetRenderDrawColor(renderer,
-        (rgb>>8&0xf)*17, (rgb>>4&0xf)*17, (rgb&0xf)*17, 0xff);
-}
-
-void pix(int x, int y) {
-    SDL_Rect r = (SDL_Rect) { x*scale, y*scale, scale, scale, };
-    SDL_RenderFillRect(renderer, &r);
-}
-
-void blit(short *a, short sw, short sh,
-        short x0, short y0, short dw, short dh) {
-    for(int x = 0; x < dw; x++)
-        for(int y = 0; y < dh; y++) {
-            int ix = x*sw/dw, iy = y*sh/dh;
-            int i = iy*sw+ix;
-            char p = a[i>>4]>>(15-(i&0xf))&1;
-            if(p) pix(x+x0, y+y0);
-        }
-}
-
-int initWindow() {
-    window = SDL_CreateWindow("Virtual Nightmare",
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        scrw*scale, scrh*scale, SDL_WINDOW_SHOWN);
-    if(!window) return 4;
-    renderer = SDL_CreateRenderer(window, -1,
-        SDL_RENDERER_SOFTWARE);
-    if(!renderer) return 4;
-    return 0;
-}
-
-void rescale(int s) {
-    scale = s;
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    initWindow(scrw, scrh);
-}
-
-#endif
-
 #define MAXFILES 20
 
 FILE *files[MAXFILES];
@@ -105,14 +49,7 @@ int readByte(unsigned short f) {
 }
 
 int run() {
-#ifdef VN_SDL
-    SDL_StartTextInput();
-    unsigned key, joy[5];
-    size_t lastUpdate = SDL_GetTicks();
-    size_t tick = 20;
-    int init = 0;
-#endif
-    for(unsigned pctk = 0;; pctk++) {
+    for(;;) {
         unsigned short ins = mem[regs[15]];
         if(debug) printf("%.4x %.4x  ", regs[15], ins);
         regs[15]++;
@@ -170,51 +107,6 @@ int run() {
             case 7: regs[1] = writeByte(regs[1], regs[2]); break;
             case 8: regs[1] = readByte(regs[1]); break;
             default: return 3;
-#ifdef VN_SDL
-            case 16:
-                scrw = regs[1]; scrh = regs[2];
-                if(SDL_Init(SDL_INIT_EVERYTHING) < 0) return 4;
-                if(initWindow()) return 4;
-                init = 1;
-                break;
-            case 17:
-                SDL_DestroyRenderer(renderer);
-                SDL_DestroyWindow(window);
-                SDL_Quit();
-                init = 0;
-                break;
-            case 18:
-                setColor(regs[1]);
-                SDL_RenderClear(renderer);
-                break;
-            case 19:
-                SDL_RenderPresent(renderer);
-                break;
-            case 20:
-                setColor(regs[2]);
-                blit(&mem[regs[1]], regs[3], regs[4], regs[5],
-                    regs[6], regs[7], regs[8]);
-                break;
-            case 21:
-                regs[1] = key;
-                break;
-            case 22:
-                if(regs[1] > 4) regs[1] = 0;
-                else regs[1] = joy[regs[1]];
-                break;
-            case 23:
-                tick = regs[1];
-                break;
-            case 24:
-                {
-                    size_t ticks = SDL_GetTicks();
-                    if(ticks-lastUpdate >= tick) {
-                        regs[1] = 1;
-                        lastUpdate = ticks;
-                    } else regs[1] = 0;
-                    break;
-                }
-#endif
             }
             nz = regs[1];
         } else {
@@ -222,39 +114,6 @@ int run() {
             if(ins&0x1000) { if(nz) regs[15] += a; }
             else if(!nz) regs[15] += a;
         }
-#ifdef VN_SDL
-        if(!init || (pctk&0x1f) != 0x1f) continue;
-        SDL_Event ev;
-        while(SDL_PollEvent(&ev))
-            switch(ev.type) {
-            case SDL_TEXTINPUT:
-                if(!(*ev.text.text&~0xffff)) key = *ev.text.text;
-                break;
-            case SDL_KEYUP:
-                for(int i = 0; i < 12; i++)
-                    if(ev.key.keysym.sym == joykeys[i]) {
-                        joy[0] |= 0x8000>>i;
-                        break;
-                    }
-                key = 0;
-                break;
-            case SDL_KEYDOWN:
-                switch(ev.key.keysym.sym) {
-                case SDLK_F4: if(scale > 1) rescale(scale-1); break;
-                case SDLK_F5: if(scale < 12) rescale(scale+1); break;
-                case SDLK_ESCAPE: key = 27; break;
-                }
-                for(int i = 0; i < 12; i++)
-                    if(ev.key.keysym.sym == joykeys[i]) {
-                        joy[0] &= ~(0x8000>>i);
-                        break;
-                    }
-                break;
-            case SDL_QUIT:
-                key = 27;
-                break;
-            }
-#endif
     }
 }
 
@@ -290,7 +149,6 @@ int main(int argc, char **args) {
     case 1: printf("invalid instruction"); break;
     case 2: printf("division by zero"); break;
     case 3: printf("unknown interrupt"); break;
-    case 4: printf("graphics error"); break;
     default: printf("error %d\n", n); break;
     }
     printf(" at 0x%.4x\n", regs[15]-1);
