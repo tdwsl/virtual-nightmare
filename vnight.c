@@ -73,10 +73,10 @@ int run() {
             case 9: *a >>= b; break; // lsr
             case 10: *a <<= b; break; // lsl
             case 11: *a *= b; break; // mul
-            case 12: *a = (short)*a/(short)b; break; // div
-            case 13: *a /= b; break; // divu
-            case 14: *a = (short)*a%(short)b; break; // rem
-            case 15: *a %= b; break; // remu
+            case 12: if(!b) return 2; *a = (short)*a/(short)b; break; // div
+            case 13: if(!b) return 2; *a /= b; break; // divu
+            case 14: if(!b) return 2; *a = (short)*a%(short)b; break; // rem
+            case 15: if(!b) return 2; *a %= b; break; // remu
             case 16: *a = (short)*a<(short)b; break; // lt
             case 17: *a = *a<b; break; // ltu
             case 18: *a = (short)*a>(short)b; break; // gt

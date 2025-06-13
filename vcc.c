@@ -1863,6 +1863,7 @@ int compileFile(char *name) {
         } else if(tok[0] == INCLUDE) {
             int ln = lineno, rt = rtype, un = fname;
             char *fn = filename;
+            tok[0] = EOF;
             if(toki = compileFile(toString(tok[1])+1)) {
                 filename = fn; errv("failed to include ", tok[1]);
             }

@@ -43,6 +43,7 @@ int puts(char *s, int pad, char padc) {
     for(i = 0; s[i]; i++);
     for(; i < pad; i++) putc(padc);
     for(i = 0; s[i]; i++) putc(s[i]);
+    if(i < pad) return pad;
     return i;
 }
 
@@ -66,7 +67,6 @@ again:
                 if(c >= '0' && c <= '9') { pad = c - '0'; goto again; }
                 putc(c); x++; break;
             }
-            //0; #dw 0xc003
         } else { putc(c); x++; }
     }
     return x;
@@ -90,7 +90,7 @@ int sprintf(char *ds, char *s, ...) {
     sds = ds;
     putc = sputc;
     int n = _printf(s, a);
-    *s++ = 0;
+    *sds++ = 0;
     return n;
 }
 
@@ -140,13 +140,14 @@ unsigned fwrite(void *data, unsigned sz, unsigned n, FILE *fp) {
 }
 
 unsigned fread(void *data, unsigned sz, unsigned n, FILE *fp) {
-    void **data = (void**)data;
+    unsigned *data = (unsigned*)data;
     sz /= 2;
     n *= sz;
     for(unsigned i = 0; i < n; i++) {
-        unsigned char c = fgetc(fp), d = fgetc(fp);
-        if(c == EOF || d == EOF) return i/sz;
-        data[i] = c|d<<8;;
+        unsigned c = fgetc(fp), d = fgetc(fp);
+        if(c == EOF) return i/sz;
+        if(d == EOF) d = 0;
+        data[i] = c|d<<8;
     }
     return n/sz;
 }
