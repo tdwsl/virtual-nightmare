@@ -1580,7 +1580,7 @@ void compileStatement() {
         if(isTypeStart()) {
             int t = readType();
             for(;;) {
-                struct local *l = &locals[nlocals++];
+                struct local *l = &locals[nlocals];
                 if(tok[toki] == LP) {
                     l->t = readName(t, &l->sym);
                     l->a = locala;
@@ -1600,10 +1600,11 @@ void compileStatement() {
                     }
                 }
                 if(!l->dim && tok[toki] == E) {
-                    int i, ol = tok[i=--toki]; tok[toki] = l->sym;
-                    compileAss(1);
-                    tok[i] = ol;
+                    toki++;
+                    whichType(E, l->t, compileAss(1));
+                    opLit(31, 1, l->a);
                 }
+                nlocals++;
                 if(tok[toki] == SEMI) break;
                 expect(COM);
             }
