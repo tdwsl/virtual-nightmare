@@ -3,6 +3,16 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef VN_SDL
+#include <SDL2/SDL.h>
+SDL_Window *window;
+SDL_Renderer *renderer;
+#define W 320
+#define H 200
+#define TITLE "virtual-nightmare"
+int scale = 2;
+#endif
+
 #define MAXFILES 20
 
 FILE *files[MAXFILES];
@@ -48,7 +58,25 @@ int readByte(unsigned short f) {
     return fgetc(files[f]);
 }
 
+#ifdef VN_SDL
+void resizeWindow() {
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    window = SDL_CreateWindow(TITLE,
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+        W*scale, H*scale, SDL_WINDOW_SHOWN);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE);
+    SDL_RenderClear(renderer); SDL_RenderPresent(renderer);
+}
+#endif
+
 int run() {
+#ifdef VN_SDL
+    size_t offs = 0;
+    int k = 0;
+    SDL_RenderClear(renderer); SDL_RenderPresent(renderer);
+    size_t lastup = SDL_GetTicks();
+#endif
     for(;;) {
         unsigned short ins = mem[regs[15]];
         if(debug) printf("%.4x %.4x  ", regs[15], ins);
@@ -107,6 +135,36 @@ int run() {
             case 7: regs[1] = writeByte(regs[1], regs[2]); break;
             case 8: regs[1] = readByte(regs[1]); break;
             default: return 3;
+#ifdef VN_SDL
+            case 16:
+                {
+                    SDL_Rect r;
+                    r.w = r.h = scale;
+                    static char p[4*3] = {
+                        0, 0, 0,
+                        0x40, 0x40, 0x40,
+                        0x80, 0x80, 0x80,
+                        0xff, 0xff, 0xff,
+                    };
+                    unsigned o = regs[1];
+                    for(int i = 0; i < 320*200; i++) {
+                        int m = (7-(i&7))*2;
+                        int j = mem[(o+(i>>3))&0xffff]>>m&3;
+                        SDL_SetRenderDrawColor(renderer,
+                            p[j*3], p[j*3+1], p[j*3+2], 0xff);
+                        r.x = (i%320)*scale; r.y = (i/320)*scale;
+                        SDL_RenderFillRect(renderer, &r);
+                    }
+                    SDL_RenderPresent(renderer);
+                }
+                break;
+            case 17:
+                regs[1] = SDL_GetTicks()+offs;
+                break;
+            case 18:
+                offs = regs[1]-SDL_GetTicks();
+                break;
+#endif
             }
             nz = regs[1];
         } else {
@@ -114,6 +172,35 @@ int run() {
             if(ins&0x1000) { if(nz) regs[15] += a; }
             else if(!nz) regs[15] += a;
         }
+#ifdef VN_SDL
+        size_t tm = SDL_GetTicks();
+        if(tm-lastup < 20) continue;
+        lastup = tm;
+        SDL_Event ev;
+        if(SDL_PollEvent(&ev)) switch(ev.type) {
+        case SDL_QUIT: return 0;
+        case SDL_TEXTINPUT:
+            k = *ev.text.text;
+            break;
+        case SDL_KEYDOWN:
+            switch(ev.key.keysym.sym) {
+            case SDLK_F4:
+                if(scale > 1) {
+                    scale--;
+                    resizeWindow();
+                }
+                break;
+            case SDLK_F5:
+                if(scale < 8) {
+                    scale++;
+                    resizeWindow();
+                }
+                break;
+            }
+            break;
+        case SDL_KEYUP: k = 0; break;
+        }
+#endif
     }
 }
 
@@ -122,11 +209,25 @@ int main(int argc, char **args) {
         printf("usage: %s file <arg1,arg2,...>\n", args[0]);
         return 1;
     }
+#ifdef VN_SDL
+    if(SDL_Init(SDL_INIT_EVERYTHING) < 0) {
+        printf("failed to init SDL\n"); return 1;
+    }
+    if(!(window = SDL_CreateWindow(TITLE,
+            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, scale*W,scale*H,
+            SDL_WINDOW_SHOWN))) {
+        printf("failed to create SDL window\n"); return 1;
+    }
+    if(!(renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_SOFTWARE))) {
+        printf("failed to create SDL renderer\n"); return 1;
+    }
+    SDL_StartTextInput();
+#endif
     FILE *fp = fopen(args[1], "rb");
     if(!fp) { printf("failed to open %s\n", args[1]); return 1; }
-    while(!feof(fp)) {
+    for(;;) {
         unsigned short a, n;
-        fread(&a, 2, 1, fp);
+        if(!fread(&a, 2, 1, fp)) break;
         fread(&n, 2, 1, fp);
         if(n && (unsigned short)(n+a) <= a) n = 65536-n;
         fread(&mem[a], 2, n, fp);
@@ -152,5 +253,10 @@ int main(int argc, char **args) {
     default: printf("error %d\n", n); break;
     }
     printf(" at 0x%.4x\n", regs[15]-1);
+#ifdef VN_SDL
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
+#endif
     return 1;
 }

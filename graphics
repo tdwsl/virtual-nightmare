@@ -1,0 +1,12 @@
+
+The graphics system for Virtual Nightmare is a 2bpp 320x200 screen at a
+user-defined location, allowing for double buffering. Pixels go from left
+to right, starting at the high bit of each word.
+
+Graphics interrupts:
+
+16 show 320x200 2bpp screen at r1
+17 get current key pressed into r1
+18 get timer value (incremented every ms) into r1
+19 set timer value to r1
+
